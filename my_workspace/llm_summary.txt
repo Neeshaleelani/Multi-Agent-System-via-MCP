@@ -1,0 +1,61 @@
+**Summary**
+
+- **Generators** are special functions that produce a sequence of values over time rather than all at once.
+- They achieve **lazy evaluation**: each value is computed only when the caller asks for it.
+- The `yield` keyword pauses the function, returns the current value, and retains its state so that the next call resumes where it left off.
+
+**Why it matters**
+
+- **Memory‑efficient**: you never have to hold the entire sequence in RAM.
+- **Potentially infinite**: you can describe streams that don’t have a predefined length.
+- **Composable**: generators can be chained together to build processing pipelines that handle data piece‑by‑piece.
+
+---
+
+**Practical Use Case: Processing a Huge Log File**
+
+Imagine you need to scan a multi‑gigabyte server log to find all lines that contain a certain error code. Loading the whole file into a list would exhaust memory, but a generator lets you work with one line at a time.
+
+```python
+def read_log(path):
+    """Yield one line at a time from a potentially massive file."""
+    with open(path, 'r', encoding='utf-8') as f:
+        for line in f:
+            yield line.rstrip('\n')
+
+def filter_errors(lines, keyword='ERROR'):
+    """Yield only the lines that contain the keyword."""
+    for line in lines:
+        if keyword in line:
+            yield line
+
+# Usage – memory stays low even for multi‑GB logs
+log_path = '/var/log/app/server.log'
+error_lines = filter_errors(read_log(log_path), keyword='DB_CONN_FAIL')
+
+for err in error_lines:
+    print(err)          # process each matching line on‑the‑fly
+```
+
+**What happens under the hood**
+
+1. `read_log` opens the file and yields one line, then pauses.
+2. `filter_errors` receives that line, checks the condition, and yields it only if it matches.
+3. The `for` loop consumes each yielded line as soon as it’s produced; after processing, the generator discards the line and moves to the next one.
+
+**Benefits in this scenario**
+
+| Benefit | Explanation |
+|---------|-------------|
+| **Low memory usage** | Only a single line (plus a few control variables) lives in memory at any moment. |
+| **Speed** | No need to build large intermediate lists; each line is processed immediately. |
+| **Scalability** | Works unchanged for a 100 KB file, a 100 GB file, or an unbounded stream (e.g., reading from a socket). |
+| **Composability** | You can stack more generator filters (date range, severity level, etc.) without rewriting the core logic. |
+
+**Other common scenarios**
+
+- Generating infinite sequences (e.g., Fibonacci numbers, prime numbers) for simulations.
+- Streaming data from APIs or sockets where the total size is unknown.
+- Implementing pipelines for data transformation (read → parse → clean → write) without temporary storage.
+
+In short, `yield` turns a regular function into a lazy, stateful iterator, enabling you to handle large or unbounded data streams efficiently and elegantly.
